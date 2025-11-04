@@ -3,6 +3,14 @@ using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddHttpClient("ApiDewc", c => c.BaseAddress = new Uri("https://artique-api-dewc.azurewebsites.net/graphql"));
+builder.Services.AddHttpClient("ApiJpw", c => c.BaseAddress = new Uri("https://artique-api-jpw.azurewebsites.net/graphql"));
+
+builder.Services
+    .AddGraphQLServer()
+    .AddRemoteSchema("ApiDewc")
+    .AddRemoteSchema("ApiJpw");
+
 builder.Services.AddReverseProxy()
     .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
 
@@ -57,14 +65,6 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-app.MapOpenApi();
-app.MapScalarApiReference(options =>
-{
-    options.WithTitle("API");
-    options.WithTheme(ScalarTheme.DeepSpace);
-    options.WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient);
-});
-
 app.UseCors();
 
 app.UseHttpsRedirection();
@@ -73,8 +73,20 @@ app.UseRateLimiter();
 
 app.UseAuthorization();
 
+app.MapOpenApi();
+
+app.MapGraphQL("/graphql");
+app.MapScalarApiReference("/scalar", options =>
+{
+    options.WithTitle("API");
+    options.WithTheme(ScalarTheme.DeepSpace);
+    options.WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient);
+});
+
 app.MapControllers();
 
 app.MapReverseProxy();
+
+app.RunWithGraphQLCommands(args);
 
 app.Run();
